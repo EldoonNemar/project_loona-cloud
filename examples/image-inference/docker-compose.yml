@@ -1,0 +1,40 @@
+# Local image generation via stable-diffusion.cpp (leejet/stable-diffusion.cpp).
+#
+#   1. Put your model weights in ./models/  (see README.md)
+#   2. docker compose up -d
+#
+# The server serves a Web UI + HTTP APIs on :1234. Point the shadow's
+# draw_agent at:  http://<this-host>:1234/sdapi/v1/txt2img
+#
+# CPU by default (runs on a Pi, just slowly). For an NVIDIA GPU, build the
+# CUDA image and uncomment the `deploy` block (needs NVIDIA Container Toolkit).
+services:
+  sd:
+    image: ghcr.io/leejet/stable-diffusion.cpp:master
+    container_name: loona-sd
+    restart: unless-stopped
+    init: true
+    volumes:
+      - ./models:/models
+      - ./output:/output
+    # Run the server (not the one-shot CLI). --model-dir points at the mounted
+    # weights; -m preloads a checkpoint so /sdapi/v1/txt2img works immediately
+    # (without it the server returns 503 until you load a model in the Web UI).
+    entrypoint: ["/sd-server"]
+    command:
+      - --model-dir
+      - /models
+      - -m
+      - /models/checkpoints/v1-5-pruned-emaonly.safetensors
+    ports:
+      - "1234:1234"
+    # --- NVIDIA GPU (optional): build the CUDA image first -----------------
+    #   docker build -f <repo>/docker/Dockerfile.cuda -t sd-cuda <repo>
+    #   then set image: sd-cuda and uncomment:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]

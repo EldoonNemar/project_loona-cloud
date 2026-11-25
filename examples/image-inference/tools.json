@@ -1,5 +1,5 @@
 {
-  "_comment": "Copy to shim/data/tools.json (or merge the draw_agent entry). Replace HOST with the machine running the image server.",
+  "_comment": "Copy to shim/data/tools.json (or merge the draw_agent entry). Replace HOST with the machine running the image server. Default points at the stable-diffusion.cpp Docker server on :1234; use :7861 for the dummy test server.",
   "proxy_host": "HOST:8001",
   "stt": { "enabled": true, "engine": "whisper", "model": "base", "language": "en" },
   "agents": {
@@ -11,7 +11,7 @@
     },
     "draw_agent": {
       "type": "image",
-      "url": "http://HOST:7861/sdapi/v1/txt2img"
+      "url": "http://HOST:1234/sdapi/v1/txt2img"
     },
     "assist_agent": { "type": "chat", "url": "" },
     "charge_setting_agent": { "type": "command", "url": "" },

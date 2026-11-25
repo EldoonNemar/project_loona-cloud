@@ -20,10 +20,19 @@ the real command.
 
 ## Run the example
 
+**Docker (easiest):**
+```bash
+cd examples/command-agent
+docker compose up -d
+```
+
+**Or natively:**
 ```bash
 python3 examples/command-agent/command_server.py 8090
-# point charge_setting_agent at: http://HOST:8090/v1/chat/completions
 ```
+
+Then point `charge_setting_agent` at `http://HOST:8090/v1/chat/completions`
+(the `tools.json` here already does).
 
 ## Point the shadow at it
 

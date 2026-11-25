@@ -1,0 +1,13 @@
+# Local command agent (robot-command hook).
+#
+#   docker compose up -d
+#
+# Then point the shadow's charge_setting_agent at
+# http://<this-host>:8090/v1/chat/completions
+services:
+  command:
+    build: .
+    container_name: loona-command
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
