@@ -1,0 +1,48 @@
+{
+  "_comment": "Copy to tools.json and fill in your endpoints. An agent is ENABLED when its url is non-empty (or it is builtin). Hot-reloads on edit. tools.json is gitignored (it holds your keys/IPs).",
+
+  "proxy_host": "192.168.1.10:8001",
+
+  "stt": {
+    "enabled": true,
+    "engine": "whisper",
+    "model": "base",
+    "language": "en"
+  },
+
+  "agents": {
+    "chat_agent": {
+      "type": "chat",
+      "url": "http://YOUR-LLM-HOST:8000/v1/chat/completions",
+      "api_key": "YOUR-LLM-API-KEY",
+      "model": "YOUR-MODEL",
+      "reasoning_effort": "none",
+      "system": "You are Loona, a small friendly pet robot. Keep replies short (1-2 sentences) and speakable - your answer is turned into speech. No markdown, no lists."
+    },
+    "draw_agent": {
+      "type": "image",
+      "url": "",
+      "api_key": "",
+      "model": ""
+    },
+    "assist_agent": {
+      "type": "chat",
+      "url": "",
+      "api_key": "",
+      "model": "",
+      "system": "You are Loona's assistant, helping the owner with how to use the robot and troubleshooting."
+    },
+    "charge_setting_agent": {
+      "type": "command",
+      "url": ""
+    },
+    "close_agent": {
+      "type": "builtin"
+    }
+  },
+
+  "visual": {
+    "enabled": true,
+    "frame_path": "/tmp/loona_frames/latest.jpg"
+  }
+}

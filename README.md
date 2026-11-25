@@ -1,16 +1,27 @@
 # loona-cloud
 
-A local stand-in for Keyi's cloud API. Point Loona at it (via the firmware's
-switchable cloud host, command `405`), and every request she makes is captured
-to `shim/data/requests.jsonl` while we answer with canned JSON from
-`shim/data/responses.json`. This is how we reverse-engineer her cloud protocol
-end-to-end — telemetry, GPT inference, TTS, update checks — **with nothing
-leaving your house.**
+A self-hosted replacement for Keyi's cloud. Point Loona at it (via the
+firmware's switchable cloud host, command `405`) and **her entire cloud —
+speech-to-text, GPT, image generation, intent routing, telemetry, firmware
+checks — runs on your own hardware, with nothing leaving your house.**
+
+By default the shim runs in **local mode**: it answers her AI endpoints with
+*your* LLM, *your* image generator, and local Whisper. Every request is also
+captured to `shim/data/requests.jsonl` so you can watch exactly what she does.
 
 > **Companion repo:** the robot SDK + control tools live in
 > [`loona`](https://github.com/<you>/loona) (mTLS socket client, discovery,
 > WebRTC camera/mic, CLI). The pointing tools in `tools/` here need that
 > package installed (`pip install /path/to/project_loona`).
+
+## The three modes
+
+| `MODE` | Behavior |
+|--------|----------|
+| `local` (default) | Answer her AI endpoints with local services (your LLM, Whisper, image gen). See [Local AI](#local-ai-her-brain-ears-and-eyes--all-yours). |
+| `canned` | Return canned JSON from `responses.json`. For pure capture / protocol study. |
+| `forward` | Set `UPSTREAM=https://usloona.keyirobot.cn:8001` to relay to the real Keyi cloud and capture the genuine request/response pairs. Used once to learn the schemas. |
+
 
 ## Primary mode: direct LAN (no cloud, no tunnel)
 
@@ -45,7 +56,90 @@ installed):
 That sends command `405` (`{"host":"<shadow-ip>"}`). She will now send all her
 cloud traffic to this box on port 8001.
 
+## Local AI (her brain, ears, and eyes — all yours)
+
+In `local` mode (the default) the shim replaces Keyi's AI with local,
+**config-driven, URL-pluggable** backends. Everything is set in
+`shim/data/tools.json` (hot-reloaded on edit — no restart).
+
+### How a request flows
+
+```
+you: "draw me a crayon"
+  1. POST /inference/stt          -> Whisper transcribes her mic
+  2. POST /inference/resolveintent-> {"intent":"GPT"}
+  3. POST /inference/intent       -> local router picks the agent + tool
+  4. POST /v1/chat/completions    -> routed to that agent's URL (your LLM)
+  5. (if visual_tool)             -> the live camera frame is injected
+```
+
+### The agents (tools.json → `agents`)
+
+Each agent maps to one of her intent categories. An agent is **enabled when it
+has a non-empty `url`** (or is `builtin`). If the router picks a disabled
+agent, we fall back to `chat_agent`, then to a canned reply.
+
+| agent | type | what it does |
+|-------|------|--------------|
+| `chat_agent` | `chat` | general conversation → your OpenAI-compatible LLM |
+| `draw_agent` | `image` | "draw X" → an image-gen endpoint (AUTOMATIC1111 or OpenAI-style) |
+| `assist_agent` | `chat` | "how do I / it's broken" → troubleshooting LLM |
+| `charge_setting_agent` | `command` | "recharge settings" → (hook for a robot-command URL) |
+| `close_agent` | `builtin` | "bye / good night" → handled locally |
+
+### The visual tool
+
+When the router decides the request needs what she's looking at
+(`visual_tool` — e.g. "what is that in front of me?"), the next GPT call
+injects the live camera frame (from the `loona` repo's WebRTC capture at
+`visual.frame_path`) into the LLM request as an image. Set `visual.enabled`
+to `false` to disable.
+
+### Enable / disable by URL
+
+Because "enabled = has a URL", turning a capability on/off is just setting or
+clearing its `url`:
+
+```jsonc
+"agents": {
+  "chat_agent": { "type":"chat",
+                  "url":"http://YOUR-LLM-HOST:8000/v1/chat/completions",
+                  "api_key":"...", "model":"qwen3.8-27b",
+                  "reasoning_effort":"none",
+                  "system":"You are Loona, a small friendly pet robot..." },
+  "draw_agent": { "type":"image", "url":"http://localhost:7860/sdapi/v1/txt2img" }
+}
+```
+
+- **chat**: any OpenAI-compatible `/v1/chat/completions` (Ollama, llama.cpp,
+  vLLM, your own). `reasoning_effort:"none"` keeps reasoning models fast.
+- **image**: AUTOMATIC1111 `/sdapi/v1/txt2img` or OpenAI
+  `/v1/images/generations`.
+- Leave a `url` empty to disable that agent (it falls back to chat).
+
+### Speech-to-text (Whisper)
+
+`/inference/stt` runs **faster-whisper** on CPU. `pip install faster-whisper`
+(see `requirements.txt`). Without it, STT returns empty and the robot hears
+nothing — everything else still works. Tune `stt.model` (`tiny`/`base`/`small`
+— `base` is a good Pi default) and `stt.language`.
+
+### Firmware freeze
+
+`/check/loona` reports her current version as the newest, so she never phones
+home for an OTA. You can't accidentally update her while she's on the shadow.
+
+### Run it
+
+```bash
+pip install faster-whisper          # optional, for her ears
+./run_local.sh                      # MODE=local by default, TLS on :8001
+# then point her at it:
+.venv/bin/python tools/loona_shadow_point.py
+```
+
 ### Watch her traffic
+
 
 ```bash
 tail -f shim/data/requests.jsonl | python3 -m json.tool --compact
@@ -77,9 +171,20 @@ python3 test_mock_robot.py     # replays her real telemetry POST over TLS
 - **Telemetry**: `POST /datapoint/loona` — a JSON array of usage events
   (`swhich_mode`, `battery`, `v25_face_mode`, `model_time`, `tcp_disconnect`,
   `hallucination`, ...). See `docs/captures/` for raw captures.
-- **GPT model**: telemetry `model_time` reports `type:"gpt-5-mini"`. The real
-  GPT inference endpoint is still to be captured (trigger a live GPT chat while
-  pointed at the shadow).
+- **GPT model**: telemetry `model_time` reports `type:"gpt-5-mini"`. Keyi
+  issues the robot a per-device OpenAI key via `POST /v2/key/gpt` (with a
+  `proxyInfo` pointing at an OpenAI-compatible proxy), and the actual
+  conversation goes through that proxy. In local mode we answer `/v2/key/gpt`
+  with a fake key whose proxy points *back at us*, so the conversation is
+  routed to your LLM instead.
+- **STT**: `POST /inference/stt` — multipart WAV upload; response
+  `{"combinedPhrases":[{"text":"..."}]}`. (Keyi also hands out an Azure
+  Cognitive key via `/v2/key/microsoft`, but the robot uses the `/inference/stt`
+  path.)
+- **Intent routing**: `POST /inference/resolveintent` (`{"data","type"}` →
+  `{"intent":"GPT","dis":0.999}`) then `POST /inference/intent` (an OpenAI
+  chat completion that Keyi runs on `llama31-chat`) →
+  `{"Best_agent":"chat_agent|draw_agent|...","Tool_requirement":"visual_tool|none_tool"}`.
 - **LAN advertisement**: UDP broadcast to `192.168.1.255:10001` every ~5s.
 
 ## Files
@@ -92,10 +197,13 @@ loona-cloud/
 │   ├── shadow.crt         # self-signed server cert (she accepts it)
 │   └── shadow.key
 ├── shim/
-│   ├── server.py          # stdlib-only TLS/HTTP server
+│   ├── server.py          # stdlib-only TLS/HTTP server (mode dispatch)
+│   ├── local.py           # local AI handler (STT/intent/GPT/image, pluggable)
 │   └── data/
-│       ├── responses.json # canned responses (edit me, hot-reloads)
-│       └── requests.jsonl # the capture (grows as she calls)
+│       ├── tools.json     # local AI config: agents, URLs, STT, visual
+│       ├── responses.json # canned responses (canned mode; hot-reloads)
+│       ├── requests.jsonl # the capture (grows as she calls)
+│       └── captures.jsonl # forward-mode: real request+response pairs
 ├── Dockerfile             # (optional) container build
 ├── docker-compose.yml     # (optional) shim + cloudflared tunnel
 └── .env                   # (optional) TUNNEL_TOKEN=

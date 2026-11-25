@@ -1,4 +1,4 @@
-# The cloud shim itself is stdlib-only (shim/server.py).
+# The cloud shim itself is stdlib-only (shim/server.py, shim/local.py).
 #
 # The pointing tools (tools/loona_shadow_point.py, tools/point_at_shadow.py)
 # need the loona robot SDK -- the sibling repo:
@@ -6,3 +6,12 @@
 #   pip install git+https://github.com/<you>/loona.git
 #   # or, from a local clone:
 #   pip install /path/to/project_loona
+#
+# Local AI (MODE=local, the default) is also stdlib-only EXCEPT speech-to-text:
+#
+#   pip install faster-whisper
+#
+# faster-whisper is optional. Without it, /inference/stt returns an empty
+# transcription (the robot hears nothing) and everything else (GPT, image,
+# intent routing, visual) still works. It runs on CPU and is the recommended
+# engine for a Raspberry Pi.

@@ -6,6 +6,9 @@ __pycache__/
 # --- Personal config (Cloudflare tunnel token, hosts) ---
 .env
 
+# --- Local AI config (your LLM URL, API key, LAN IPs) ---
+shim/data/tools.json
+
 # --- Captured robot traffic (personal data, grows unbounded) ---
 shim/data/*.jsonl
 
