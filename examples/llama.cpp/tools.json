@@ -1,0 +1,19 @@
+{
+  "_comment": "Copy to shim/data/tools.json (or merge the chat_agent entry). Replace HOST with the machine running llama.cpp.",
+  "proxy_host": "HOST:8001",
+  "stt": { "enabled": true, "engine": "whisper", "model": "base", "language": "en" },
+  "agents": {
+    "chat_agent": {
+      "type": "chat",
+      "url": "http://HOST:8080/v1/chat/completions",
+      "model": "qwen2.5-3b-instruct",
+      "reasoning_effort": "none",
+      "system": "You are Loona, a small friendly pet robot. Keep replies short (1-2 sentences) and speakable - your answer is turned into speech. No markdown, no lists."
+    },
+    "draw_agent": { "type": "image", "url": "" },
+    "assist_agent": { "type": "chat", "url": "" },
+    "charge_setting_agent": { "type": "command", "url": "" },
+    "close_agent": { "type": "builtin" }
+  },
+  "visual": { "enabled": true, "frame_path": "/tmp/loona_frames/latest.jpg" }
+}

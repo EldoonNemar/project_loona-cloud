@@ -1,0 +1,22 @@
+{
+  "_comment": "Copy to shim/data/tools.json (or merge the charge_setting_agent entry). Replace HOST with the machine running the command server.",
+  "proxy_host": "HOST:8001",
+  "stt": { "enabled": true, "engine": "whisper", "model": "base", "language": "en" },
+  "agents": {
+    "chat_agent": {
+      "type": "chat",
+      "url": "",
+      "model": "",
+      "system": "You are Loona, a small friendly pet robot. Keep replies short and speakable."
+    },
+    "draw_agent": { "type": "image", "url": "" },
+    "assist_agent": { "type": "chat", "url": "" },
+    "charge_setting_agent": {
+      "type": "command",
+      "url": "http://HOST:8090/v1/chat/completions",
+      "model": "command-agent"
+    },
+    "close_agent": { "type": "builtin" }
+  },
+  "visual": { "enabled": true, "frame_path": "/tmp/loona_frames/latest.jpg" }
+}

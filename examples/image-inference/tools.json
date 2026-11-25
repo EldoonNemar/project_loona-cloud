@@ -1,0 +1,21 @@
+{
+  "_comment": "Copy to shim/data/tools.json (or merge the draw_agent entry). Replace HOST with the machine running the image server.",
+  "proxy_host": "HOST:8001",
+  "stt": { "enabled": true, "engine": "whisper", "model": "base", "language": "en" },
+  "agents": {
+    "chat_agent": {
+      "type": "chat",
+      "url": "",
+      "model": "",
+      "system": "You are Loona, a small friendly pet robot. Keep replies short and speakable."
+    },
+    "draw_agent": {
+      "type": "image",
+      "url": "http://HOST:7861/sdapi/v1/txt2img"
+    },
+    "assist_agent": { "type": "chat", "url": "" },
+    "charge_setting_agent": { "type": "command", "url": "" },
+    "close_agent": { "type": "builtin" }
+  },
+  "visual": { "enabled": true, "frame_path": "/tmp/loona_frames/latest.jpg" }
+}

@@ -87,6 +87,10 @@ agent, we fall back to `chat_agent`, then to a canned reply.
 | `charge_setting_agent` | `command` | "recharge settings" → (hook for a robot-command URL) |
 | `close_agent` | `builtin` | "bye / good night" → handled locally |
 
+See [`examples/`](examples/) for ready-to-run backends for each type:
+**llama.cpp** (chat, Pi-friendly), **image inference** (draw, dummy + Stable
+Diffusion), and the **command agent** (robot-command hook).
+
 ### The visual tool
 
 When the router decides the request needs what she's looking at
@@ -193,37 +197,39 @@ python3 test_mock_robot.py     # replays her real telemetry POST over TLS
 loona-cloud/
 ├── run_local.sh           # start the shadow on the LAN (TLS:8001)
 ├── test_mock_robot.py     # replay her real telemetry POST (no robot needed)
-├── certs/
-│   ├── shadow.crt         # self-signed server cert (she accepts it)
-│   └── shadow.key
+├── certs/                 # gitignored; auto-generated / extracted
+│   ├── shadow.crt         # self-signed server cert (auto-generated; she accepts it)
+│   ├── shadow.key
+│   └── app_client.*       # the app's mTLS client cert (forward mode only)
 ├── shim/
 │   ├── server.py          # stdlib-only TLS/HTTP server (mode dispatch)
 │   ├── local.py           # local AI handler (STT/intent/GPT/image, pluggable)
 │   └── data/
-│       ├── tools.json     # local AI config: agents, URLs, STT, visual
+│       ├── tools.json     # local AI config: agents, URLs, STT, visual (gitignored)
+│       ├── tools.json.example
 │       ├── responses.json # canned responses (canned mode; hot-reloads)
 │       ├── requests.jsonl # the capture (grows as she calls)
 │       └── captures.jsonl # forward-mode: real request+response pairs
-├── Dockerfile             # (optional) container build
-├── docker-compose.yml     # (optional) shim + cloudflared tunnel
-└── .env                   # (optional) TUNNEL_TOKEN=
+├── examples/              # ready-to-run local AI backends
+│   ├── llama.cpp/         # chat_agent: local GGUF LLM (Pi-friendly)
+│   ├── image-inference/   # draw_agent: /sdapi/v1/txt2img (dummy + SD)
+│   └── command-agent/     # charge_setting_agent: robot-command hook
+├── Dockerfile             # (optional) container build (TLS:8001)
+└── docker-compose.yml     # (optional) containerized shim
 ```
 
-## Optional: tunnel mode (only if she can't reach your LAN)
+## Run in Docker
 
-The direct-LAN mode above is the default and needs no tunnel. If you ever need
-to reach the shadow from off-LAN (e.g. the robot is on a different network), you
-can front the plain-HTTP shim with a Cloudflare tunnel:
+The shim is fully containerized — TLS on `:8001`, self-signed cert
+auto-generated on first run, `./shim/data` mounted so your config and captures
+persist:
 
 ```bash
-# put TUNNEL_TOKEN in .env, then:
 sudo docker compose up -d --build
 sudo docker compose logs -f shim
 ```
 
-Then point her at the public hostname instead of the LAN IP. Note this routes
-her (small JSON) traffic through Cloudflare — avoid it if you want strictly
-local.
+Then point her at this box's LAN IP (`tools/loona_shadow_point.py`).
 
 ## Iterating
 

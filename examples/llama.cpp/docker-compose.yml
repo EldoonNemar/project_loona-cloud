@@ -1,0 +1,22 @@
+# Local chat via llama.cpp. Put your .gguf model in ./models/ first.
+#
+#   docker compose up -d
+#
+# Then point the shadow's chat_agent at http://<this-host>:8080/v1/chat/completions
+services:
+  llama:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    container_name: loona-llama
+    restart: unless-stopped
+    volumes:
+      - ./models:/models
+    # Pick your model. --port must match the URL in tools.json.
+    command:
+      - --model
+      - /models/qwen2.5-3b-instruct-q4_k_m.gguf
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8080"
+    ports:
+      - "8080:8080"
