@@ -1,0 +1,19 @@
+# --- Python ---
+__pycache__/
+*.pyc
+.venv/
+
+# --- Personal config (Cloudflare tunnel token, hosts) ---
+.env
+
+# --- Captured robot traffic (personal data, grows unbounded) ---
+shim/data/*.jsonl
+
+# --- Regenerable self-signed certs (server auto-generates) ---
+certs/
+
+# --- Logs / OS ---
+*.log
+.DS_Store
+.idea/
+.vscode/

@@ -1,0 +1,19 @@
+{
+  "_default": {
+    "code": 0,
+    "result": 0,
+    "type": 0,
+    "msg": "success",
+    "title": "",
+    "url": "",
+    "data": {}
+  },
+  "/healthz": { "ok": true },
+  "/datapoint/loona": {
+    "code": 0,
+    "result": 0,
+    "type": 0,
+    "msg": "success",
+    "data": {}
+  }
+}
