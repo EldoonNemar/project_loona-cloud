@@ -19,7 +19,20 @@ Each example has a `docker-compose.yml` (or a `Dockerfile`) so it runs with one
 
 1. Run the example's server (each README has the command / compose).
 2. Copy its `tools.json` to `shim/data/tools.json` **or** merge just the
-   relevant `agents` entry into your existing one.
+   relevant `agents` entry into your existing one. To merge, take the one
+   agent object from the example's `tools.json` and drop it into your
+   `shim/data/tools.json` under `"agents"`:
+   ```jsonc
+   // agents/image/tools.json has:
+   { "agents": { "draw_agent": { "type":"image",
+         "url":"http://HOST:1234/sdapi/v1/txt2img" } } }
+   // merge into your shim/data/tools.json:
+   { "agents": {
+       "chat_agent": { ... },          // keep what you have
+       "draw_agent": { "type":"image", // add the new one
+         "url":"http://HOST:1234/sdapi/v1/txt2img" }
+   } }
+   ```
 3. Replace `HOST` with the machine running the server (the shadow's LAN IP if
    it's the same box).
 4. The config hot-reloads — no shadow restart needed.

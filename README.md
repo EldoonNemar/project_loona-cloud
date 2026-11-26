@@ -14,6 +14,68 @@ captured to `shim/data/requests.jsonl` so you can watch exactly what she does.
 > WebRTC camera/mic, CLI). The pointing tools in `tools/` here need that
 > package installed (`pip install /path/to/project_loona`).
 
+## Quickstart — get her talking in 5 minutes
+
+The goal: Loona's voice and brain run on **your** hardware. This is the
+shortest path to "she talks to me, locally."
+
+**1. Pick your brain** — she needs an OpenAI-compatible
+`/v1/chat/completions` endpoint. Use what you already have, or run one of ours:
+
+| You have | Do this |
+|----------|---------|
+| a Raspberry Pi 5 (8GB) | run [`agents/llama.cpp`](agents/llama.cpp/) with Qwen2.5-3B |
+| a GPU box | run [vLLM](https://docs.vllm.ai/) or [Ollama](https://ollama.com) |
+| Ollama / LM Studio / llama.cpp already running | just point at it (table below) |
+| a powerful LAN box running a model | just point at it (table below) |
+| an OpenAI / other API key | point at it (works, but not local) |
+
+Model size by hardware (Q4 GGUF — her replies are 1–2 sentences, so small is fine):
+
+| Hardware | Model | Speed |
+|----------|-------|-------|
+| Pi 5, 8GB | Qwen2.5-3B | ~5–15 tok/s |
+| Pi 4, 8GB | Qwen2.5-3B | ~3–8 tok/s |
+| Pi 4/5, 4GB | Qwen2.5-1.5B | ~5–10 tok/s |
+| RTX GPU | 7B–14B | fast |
+
+**2. Configure** — copy the example config and set `llm.url`:
+
+```bash
+cd loona-cloud
+cp shim/data/tools.json.example shim/data/tools.json
+```
+
+| Your endpoint | `llm.url` | `model` |
+|---------------|-----------|---------|
+| Ollama | `http://HOST:11434/v1/chat/completions` | `qwen2.5:3b` |
+| LM Studio | `http://HOST:1234/v1/chat/completions` | any |
+| llama.cpp | `http://HOST:8080/v1/chat/completions` | any |
+| vLLM | `http://HOST:8000/v1/chat/completions` | your model |
+| OpenAI | `https://api.openai.com/v1/chat/completions` | `gpt-4o-mini` (+ `api_key`) |
+
+`HOST` = the machine running that server (its LAN IP, or `localhost` if it's
+this box). That's the **only required field** — STT, intent routing, and the
+chat agents all inherit from `llm`.
+
+**3. Start the shadow, point her at it:**
+
+```bash
+pip install faster-whisper          # her ears (recommended)
+./run_local.sh                      # TLS on :8001
+# separate terminal:
+.venv/bin/python tools/loona_shadow_point.py
+```
+
+**4. Talk to her** — say "Hello Loona" and ask her something. Watch it work:
+
+```bash
+tail -f shim/data/requests.jsonl | python3 -m json.tool --compact
+```
+
+Done — her brain is your LLM. To add **drawing** or **robot commands**, see
+[Agents: add capabilities](#agents-add-capabilities).
+
 ## The three modes
 
 | `MODE` | Behavior |
@@ -178,6 +240,33 @@ tail -f shim/data/requests.jsonl | python3 -m json.tool --compact
 ```bash
 python3 test_mock_robot.py     # replays her real telemetry POST over TLS
 ```
+
+## Agents: add capabilities
+
+The shadow ships with **ready-to-run backends** for each agent type in
+[`agents/`](agents/). An agent is *enabled* when it has a URL; the intent
+router picks the right one per request and falls back to chat if it's disabled.
+
+| I want Loona to... | Agent | Run this |
+|--------------------|-------|----------|
+| Talk (general) | `chat_agent` | [`agents/llama.cpp`](agents/llama.cpp/) (or any LLM) |
+| Draw pictures | `draw_agent` | [`agents/image`](agents/image/) (stable-diffusion.cpp) |
+| Do things (settings, dock, ...) | `charge_setting_agent` | [`agents/command`](agents/command/) (robot-command hook) |
+
+**To add one (e.g. drawing):**
+
+1. Run the backend: `cd agents/image && docker compose up -d` (its README has
+   the model download + exact commands).
+2. Merge its `tools.json` entry into `shim/data/tools.json`:
+   ```jsonc
+   "draw_agent": { "type": "image",
+                   "url": "http://HOST:1234/sdapi/v1/txt2img" }
+   ```
+3. Done — the config hot-reloads, no restart. Say "draw me a crayon."
+
+Each `agents/*` README has the exact commands, model downloads, and a
+`tools.json` to copy. All three can run at once. The detailed reference for
+how routing/URLs work is in [Local AI](#local-ai-her-brain-ears-and-eyes--all-yours).
 
 ## What it does
 
