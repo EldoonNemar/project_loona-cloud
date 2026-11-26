@@ -1,5 +1,5 @@
 {
-  "_comment": "Copy to shim/data/tools.json (or merge the draw_agent entry). Replace HOST with the machine running the image server. Default points at the stable-diffusion.cpp Docker server on :1234; use :7861 for the dummy test server.",
+  "_comment": "Copy to shim/data/tools.json (or merge the draw_agent entry). Replace HOST with the machine running the image server (stable-diffusion.cpp Docker server on :1234 by default).",
   "proxy_host": "HOST:8001",
   "stt": { "enabled": true, "engine": "whisper", "model": "base", "language": "en" },
   "agents": {

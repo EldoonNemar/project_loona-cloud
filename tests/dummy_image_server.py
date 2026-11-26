@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
-"""Dummy image server: speaks the AUTOMATIC1111 /sdapi/v1/txt2img API and
-returns a real PNG, so you can test Loona's draw pipeline without a GPU.
+"""Dummy image server (test double): speaks the AUTOMATIC1111
+/sdapi/v1/txt2img API and returns a real PNG, so the draw pipeline can be
+tested without a Stable Diffusion model or GPU.
 
 The image color is derived from the prompt (SHA-256 -> RGB), so distinct
 prompts produce distinct images — proof the prompt flows through end to end.
 
-Stdlib-only.
+Used by tests/test_draw_pipeline.py. Also runnable standalone:
 
-    python3 dummy_image_server.py [port]     # default 7861
+    python3 tests/dummy_image_server.py [port]     # default 7861
 """
 import base64
 import hashlib
 import json
 import struct
 import sys
+import threading
 import zlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -54,11 +56,18 @@ class Handler(BaseHTTPRequestHandler):
         prompt = str(req.get("prompt", "loona"))
         h = hashlib.sha256(prompt.encode("utf-8")).digest()
         png = make_png(512, 512, (h[0], h[1], h[2]))
-        print(f"[dummy-image] prompt={prompt!r} -> {len(png)} bytes", flush=True)
         self._send(200, {"images": [base64.b64encode(png).decode()]})
 
     def log_message(self, *args):
         pass
+
+
+def start(host="127.0.0.1", port=0):
+    """Start the server in a daemon thread. port=0 lets the OS pick a free
+    port; the actual port is httpd.server_address[1]. Returns the server."""
+    httpd = ThreadingHTTPServer((host, port), Handler)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    return httpd
 
 
 if __name__ == "__main__":

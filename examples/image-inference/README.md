@@ -31,20 +31,7 @@ you want to fiddle with models/recipes.
 - **NVIDIA GPU**: build the CUDA image and uncomment the `deploy` block in
   `docker-compose.yml` (needs the NVIDIA Container Toolkit).
 
-## Option B — Dummy server (test the pipeline, no model/GPU)
-
-`dummy_image_server.py` is a stdlib-only server that speaks
-`/sdapi/v1/txt2img` and returns a real PNG. The color is derived from the
-prompt, so different prompts give different images — proving the prompt flows
-through end to end. Use this to confirm the full
-intent → draw_agent → image → display path before downloading a model.
-
-```bash
-python3 examples/image-inference/dummy_image_server.py 7861
-# point draw_agent at: http://HOST:7861/sdapi/v1/txt2img
-```
-
-## Option C — AUTOMATIC1111 (alternative real SD)
+## Option B — AUTOMATIC1111 (alternative real SD)
 
 If you already run [AUTOMATIC1111](https://github.com/AUTOMATIC1111/stable-diffusion-webui),
 just point `draw_agent` at its API:
@@ -57,4 +44,14 @@ just point `draw_agent` at its API:
 
 Copy `tools.json` to `shim/data/tools.json` (or merge the `draw_agent` entry).
 Replace `HOST` with the image server's machine.
+
+## Testing the pipeline (no model needed)
+
+To verify the draw path (intent → `draw_agent` → image endpoint → `b64_json`)
+without downloading a model, run the test — it uses a tiny stdlib image
+double:
+
+```bash
+python3 tests/test_draw_pipeline.py     # -> DRAW PIPELINE TEST OK
+```
 
