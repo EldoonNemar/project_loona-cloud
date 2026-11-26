@@ -3,7 +3,7 @@
 # The pointing tools (tools/loona_shadow_point.py, tools/point_at_shadow.py)
 # need the loona robot SDK -- the sibling repo:
 #
-#   pip install git+https://github.com/<you>/loona.git
+#   pip install git+https://github.com/EldoonNemar/project_loona.git
 #   # or, from a local clone:
 #   pip install /path/to/project_loona
 #

@@ -10,7 +10,7 @@ By default the shim runs in **local mode**: it answers her AI endpoints with
 captured to `shim/data/requests.jsonl` so you can watch exactly what she does.
 
 > **Companion repo:** the robot SDK + control tools live in
-> [`loona`](https://github.com/<you>/loona) (mTLS socket client, discovery,
+> [`project_loona`](https://github.com/EldoonNemar/project_loona) (mTLS socket client, discovery,
 > WebRTC camera/mic, CLI). The pointing tools in `tools/` here need that
 > package installed (`pip install /path/to/project_loona`).
 
