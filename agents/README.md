@@ -1,4 +1,4 @@
-# Examples — plugging local AI into the shadow
+# Agents — plugging local AI into the shadow
 
 Each subdirectory is a worked example for one **agent type** in
 `shim/data/tools.json`. An agent is *enabled* when it has a non-empty `url`

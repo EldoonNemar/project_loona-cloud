@@ -14,7 +14,7 @@ Z-Image/...). It ships a Docker image with a built-in server that exposes both
 `/sdapi/v1/txt2img` and `/v1/images/generations` on port **1234**.
 
 ```bash
-cd examples/image-inference
+cd agents/image-inference
 mkdir -p models/checkpoints
 # download a checkpoint, e.g. Stable Diffusion 1.5:
 curl -L -o models/checkpoints/v1-5-pruned-emaonly.safetensors \

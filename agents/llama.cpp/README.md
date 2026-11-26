@@ -18,7 +18,7 @@ A 3B `Q4_K_M` is a good Pi default. Bigger = smarter but slower.
 
 **Docker (easiest):**
 ```bash
-cd examples/llama.cpp
+cd agents/llama.cpp
 docker compose up -d
 ```
 This starts `llama-server` on `:8080` with the model from `./models/`.

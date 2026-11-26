@@ -106,7 +106,7 @@ disabled agent, we fall back to `chat_agent`, then to a canned reply.
 | `charge_setting_agent` | `command` | "recharge settings" → (hook for a robot-command URL) |
 | `close_agent` | `builtin` | "bye / good night" → handled locally |
 
-See [`examples/`](examples/) for ready-to-run backends for each type:
+See [`agents/`](agents/) for ready-to-run backends for each type:
 **llama.cpp** (chat, Pi-friendly), **image inference** (draw, dummy + Stable
 Diffusion), and the **command agent** (robot-command hook).
 
@@ -234,7 +234,7 @@ loona-cloud/
 │       ├── responses.json # canned responses (canned mode; hot-reloads)
 │       ├── requests.jsonl # the capture (grows as she calls)
 │       └── captures.jsonl # forward-mode: real request+response pairs
-├── examples/              # ready-to-run local AI backends
+├── agents/                # ready-to-run local AI backends
 │   ├── llama.cpp/         # chat_agent: local GGUF LLM (Pi-friendly)
 │   ├── image-inference/   # draw_agent: stable-diffusion.cpp (Docker)
 │   └── command-agent/     # charge_setting_agent: robot-command hook
