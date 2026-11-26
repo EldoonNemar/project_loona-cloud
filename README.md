@@ -236,8 +236,8 @@ loona-cloud/
 │       └── captures.jsonl # forward-mode: real request+response pairs
 ├── agents/                # ready-to-run local AI backends
 │   ├── llama.cpp/         # chat_agent: local GGUF LLM (Pi-friendly)
-│   ├── image-inference/   # draw_agent: stable-diffusion.cpp (Docker)
-│   └── command-agent/     # charge_setting_agent: robot-command hook
+│   ├── image/             # draw_agent: stable-diffusion.cpp (Docker)
+│   └── command/           # charge_setting_agent: robot-command hook
 ├── tests/
 │   ├── test_draw_pipeline.py  # draw path, no model/GPU (uses image double)
 │   └── dummy_image_server.py  # stdlib /sdapi/v1/txt2img test double

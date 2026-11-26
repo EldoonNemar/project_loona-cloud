@@ -22,13 +22,13 @@ the real command.
 
 **Docker (easiest):**
 ```bash
-cd agents/command-agent
+cd agents/command
 docker compose up -d
 ```
 
 **Or natively:**
 ```bash
-python3 agents/command-agent/command_server.py 8090
+python3 agents/command/command_server.py 8090
 ```
 
 Then point `charge_setting_agent` at `http://HOST:8090/v1/chat/completions`

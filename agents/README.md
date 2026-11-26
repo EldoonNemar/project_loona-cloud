@@ -8,8 +8,8 @@ to `chat_agent` if the chosen one is disabled.
 | Example | Agent | Type | What it gives Loona |
 |---------|-------|------|---------------------|
 | [`llama.cpp/`](llama.cpp/) | `chat_agent` | `chat` | General conversation via a local GGUF model (runs on a Pi) |
-| [`image-inference/`](image-inference/) | `draw_agent` | `image` | "Draw me X" → a generated image she displays (stable-diffusion.cpp) |
-| [`command-agent/`](command-agent/) | `charge_setting_agent` | `command` | A hook for robot-command dispatch (e.g. charging settings) |
+| [`image/`](image/) | `draw_agent` | `image` | "Draw me X" → a generated image she displays (stable-diffusion.cpp) |
+| [`command/`](command/) | `charge_setting_agent` | `command` | A hook for robot-command dispatch (e.g. charging settings) |
 
 Each example has a `docker-compose.yml` (or a `Dockerfile`) so it runs with one
 `docker compose up -d`, plus a `tools.json` you copy/merge into
