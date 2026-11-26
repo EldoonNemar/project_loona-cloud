@@ -1,5 +1,23 @@
 # loona-cloud
 
+> ## ⚠️ ALPHA — experimental, expect bugs
+>
+> This is a **work in progress**, not a finished product. The core is
+> **verified against a real robot** (mTLS control socket, the `405` cloud
+> redirect, traffic capture, Chrome/libwebrtc camera + mic, local Whisper STT),
+> but the full *"she talks to me, fully local"* conversation loop is still
+> being shaken out — **there will be bugs**. Expect her to occasionally say
+> "network error," drop a connection, or misroute an intent. **TTS (her spoken
+> voice) is the least-verified piece.**
+>
+> - **Reverse-engineered.** This speaks Loona's *private* protocol. It is
+>   **not official, not affiliated with, or endorsed by Keyi / Keyi Robot.**
+> - **Your hardware, your risk.** Run it on your own network and your own
+>   robot. Nothing here is a safety guarantee — she's a physical robot that
+>   can bump into things.
+> - **Personal / hobby use.** Please don't build a commercial product on this
+>   or use it to hammer Keyi's servers.
+
 A self-hosted replacement for Keyi's cloud. Point Loona at it (via the
 firmware's switchable cloud host, command `405`) and **her entire cloud —
 speech-to-text, GPT, image generation, intent routing, telemetry, firmware
@@ -237,8 +255,12 @@ tail -f shim/data/requests.jsonl | python3 -m json.tool --compact
 
 ### Test without the robot
 
+Start the shadow, then replay her real telemetry POST against it (separate
+terminals):
+
 ```bash
-python3 test_mock_robot.py     # replays her real telemetry POST over TLS
+./run_local.sh                                  # terminal 1: the shadow
+python3 test_mock_robot.py                      # terminal 2: -> "MOCK ROBOT TEST OK"
 ```
 
 ## Agents: add capabilities
