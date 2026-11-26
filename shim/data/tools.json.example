@@ -1,7 +1,20 @@
 {
-  "_comment": "Copy to tools.json and fill in your endpoints. An agent is ENABLED when its url is non-empty (or it is builtin). Hot-reloads on edit. tools.json is gitignored (it holds your keys/IPs).",
+  "_comment": "Copy to tools.json and fill in your endpoints. 'llm' is the shared brain (default: the local llama.cpp docker agent); chat agents + the intent router inherit it when their own url is empty. An agent is ENABLED when it has a resolvable url (its own, or the shared llm for chat agents). To route intent with a smaller EXTERNAL LLM instead of the local docker agent, set intent.url. Hot-reloads on edit. tools.json is gitignored (it holds your keys/IPs).",
 
   "proxy_host": "192.168.1.10:8001",
+
+  "llm": {
+    "url": "http://llama.cpp:8080/v1/chat/completions",
+    "model": "qwen2.5-3b-instruct",
+    "api_key": "",
+    "reasoning_effort": "none"
+  },
+
+  "intent": {
+    "url": "",
+    "model": "",
+    "api_key": ""
+  },
 
   "stt": {
     "enabled": true,
@@ -13,10 +26,7 @@
   "agents": {
     "chat_agent": {
       "type": "chat",
-      "url": "http://YOUR-LLM-HOST:8000/v1/chat/completions",
-      "api_key": "YOUR-LLM-API-KEY",
-      "model": "YOUR-MODEL",
-      "reasoning_effort": "none",
+      "url": "",
       "system": "You are Loona, a small friendly pet robot. Keep replies short (1-2 sentences) and speakable - your answer is turned into speech. No markdown, no lists."
     },
     "draw_agent": {

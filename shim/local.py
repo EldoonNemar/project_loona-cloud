@@ -5,7 +5,7 @@ This module answers the robot's cloud endpoints *locally* (no Keyi, no AWS):
 
   /inference/stt            -> faster-whisper            (her ears)
   /inference/resolveintent  -> {"intent":"GPT",...}      (proceed to GPT)
-  /inference/intent         -> local keyword router      (picks the agent)
+  /inference/intent         -> LLM router (wired like the cloud) (picks agent)
   /v1/chat/completions      -> your OpenAI LLM           (her brain / GPT proxy)
   /v2/key/gpt               -> fake key + proxy = us     (redirects GPT to us)
   /v2/key/microsoft         -> fake Azure key            (ASR/TTS creds)
@@ -53,6 +53,14 @@ _stt_warned = False
 def _default_tools():
     return {
         "proxy_host": "127.0.0.1:8001",
+        # Shared default LLM ("the brain"). Chat agents and the intent router
+        # inherit this when their own url is empty. Point it at the local
+        # llama.cpp docker agent, or any OpenAI-compatible endpoint.
+        "llm": {"url": "", "model": "", "api_key": "",
+                "reasoning_effort": "none"},
+        # The intent router. Empty url -> inherits the shared "llm". Set a url
+        # to route with a smaller/external LLM instead of the shared brain.
+        "intent": {"url": "", "model": "", "api_key": ""},
         "stt": {"enabled": True, "engine": "whisper", "model": "base",
                 "language": "en"},
         "agents": {
@@ -103,12 +111,32 @@ def load_tools():
         return _tools_cache["cfg"]
 
 
-def _agent_enabled(agent_cfg):
-    """An agent is enabled if builtin, or has a non-empty url."""
+def _effective_llm(cfg, agent_cfg):
+    """Resolve the LLM endpoint for a chat agent / the intent router.
+
+    The agent's own url/model/api_key/reasoning_effort win; any that are empty
+    are filled from the shared "llm" block. Only chat agents and the intent
+    router (no "type") inherit the shared brain; image/command agents need
+    their own endpoint. Other fields (system, ...) always come from the agent.
+    """
+    eff = dict(agent_cfg or {})
+    shared = cfg.get("llm") or {}
+    if eff.get("type") in (None, "", "chat"):
+        for k in ("url", "model", "api_key", "reasoning_effort"):
+            if not eff.get(k) and shared.get(k):
+                eff[k] = shared[k]
+    return eff
+
+
+def _agent_enabled(cfg, agent_cfg):
+    """An agent is enabled if builtin, or has a resolvable url (its own, or the
+    shared "llm" for chat agents)."""
     if not agent_cfg:
         return False
     if agent_cfg.get("type") == "builtin":
         return True
+    if agent_cfg.get("type") == "chat":
+        return bool(_effective_llm(cfg, agent_cfg).get("url"))
     return bool(agent_cfg.get("url"))
 
 
@@ -125,13 +153,16 @@ def _http_json(url, payload, api_key=None, timeout=90):
         return json.loads(resp.read().decode("utf-8"))
 
 
-def _openai_chat(agent_cfg, messages, timeout=90):
-    """Call an OpenAI-compatible chat endpoint. Returns the raw response."""
-    payload = {"model": agent_cfg.get("model", ""), "messages": messages}
-    if agent_cfg.get("reasoning_effort"):
-        payload["reasoning_effort"] = agent_cfg["reasoning_effort"]
-    return _http_json(agent_cfg["url"], payload, agent_cfg.get("api_key"),
-                      timeout)
+def _openai_chat(eff, req, timeout=90):
+    """Call an OpenAI-compatible chat endpoint. `req` is the full request dict
+    (messages, max_tokens, ...); the model is overridden with the effective
+    one. Returns the raw response."""
+    payload = dict(req)
+    if eff.get("model"):
+        payload["model"] = eff["model"]
+    if eff.get("reasoning_effort"):
+        payload.setdefault("reasoning_effort", eff["reasoning_effort"])
+    return _http_json(eff["url"], payload, eff.get("api_key"), timeout)
 
 
 def _image_gen(agent_cfg, prompt, timeout=180):
@@ -233,42 +264,38 @@ def _stt(body, content_type, stt_cfg):
 
 
 # --------------------------------------------------------------------------- #
-# Intent routing (local keyword router)
+# Intent routing (LLM router, wired like the cloud)
 # --------------------------------------------------------------------------- #
-_KEYWORDS = {
-    "draw_agent": ["draw", "paint", "sketch", "picture", "crayon",
-                   "illustrate", "doodle", "make a drawing"],
-    "charge_setting_agent": ["charge", "charging", "recharge", "battery",
-                             "dock", "power level", "auto recharge"],
-    "close_agent": ["bye", "goodbye", "good night", "goodnight", "that's all",
-                    "thats all", "that is all", "sleep now", "good bye",
-                    "see you", "stop talking", "shut up"],
-    "assist_agent": ["how do i", "how does", "help me", "not working",
-                     "broken", "error", "troubleshoot", "how to use",
-                     "what is loona", "why are you"],
-}
+_KNOWN_AGENTS = {"chat_agent", "draw_agent", "assist_agent",
+                 "charge_setting_agent", "close_agent"}
 
 
-def _route_intent(text):
-    """Pick (agent, tool) from the user's text."""
-    t = (text or "").lower()
-    tool = "none_tool"
-    if re.search(r"\b(look|see|this|that|these|those|what.*i.*see|"
-                 r"what.*in front|point)\b", t):
-        tool = "visual_tool"
-    for agent, kws in _KEYWORDS.items():
-        if any(kw in t for kw in kws):
-            return agent, tool
-    return "chat_agent", tool
+def _parse_route(content):
+    """Extract (agent, tool) from the LLM's JSON content. Tolerates extra text
+    around the JSON object. Falls back to (chat_agent, none_tool)."""
+    agent, tool = "chat_agent", "none_tool"
+    m = re.search(r"\{.*\}", content or "", re.DOTALL)
+    if m:
+        try:
+            obj = json.loads(m.group(0))
+            a = obj.get("Best_agent", "")
+            t = obj.get("Tool_requirement", "")
+            if a in _KNOWN_AGENTS:
+                agent = a
+            if t in ("visual_tool", "none_tool"):
+                tool = t
+        except Exception:
+            pass
+    return agent, tool
 
 
 def _pick_agent(cfg, wanted):
     """Return (agent_name, agent_cfg) to actually use, with fallback."""
     agents = cfg["agents"]
-    if wanted in agents and _agent_enabled(agents[wanted]):
+    if wanted in agents and _agent_enabled(cfg, agents[wanted]):
         return wanted, agents[wanted]
     chat = agents.get("chat_agent")
-    if chat and _agent_enabled(chat):
+    if chat and _agent_enabled(cfg, chat):
         return "chat_agent", chat
     return None, None
 
@@ -359,24 +386,40 @@ def _handle_resolveintent(body, headers, cfg):
 
 
 def _handle_intent(body, headers, cfg):
-    """The agent router. Robot sends an OpenAI chat completion; we return the
-    routing decision in the same OpenAI shape."""
+    """The agent router, wired like the cloud. The robot sends the full routing
+    prompt (an OpenAI chat completion with the "task allocation" system prompt +
+    the user's text); we forward it to the intent LLM and return the LLM's
+    answer. We also parse Best_agent/Tool_requirement so the following
+    /v1/chat/completions knows which agent to run and whether to attach the
+    camera frame."""
     try:
         req = json.loads(body.decode("utf-8")) if body else {}
     except Exception:
         req = {}
-    user_text = ""
-    for msg in reversed(req.get("messages", [])):
-        if msg.get("role") == "user":
-            c = msg.get("content")
-            user_text = c if isinstance(c, str) else json.dumps(c)
-            break
-    agent, tool = _route_intent(user_text)
-    with _route_lock:
-        _last_route.update(tool=tool, agent=agent, ts=time.time())
-    content = json.dumps({"Best_agent": agent, "Tool_requirement": tool})
-    out, ctype = _json_bytes(_openai_reply(content, model="local-router"))
-    return 200, {"Content-Type": ctype}, out
+    eff = _effective_llm(cfg, cfg.get("intent", {}))
+
+    def _fallback():
+        with _route_lock:
+            _last_route.update(tool="none_tool", agent="chat_agent",
+                               ts=time.time())
+        content = json.dumps({"Best_agent": "chat_agent",
+                              "Tool_requirement": "none_tool"})
+        out, ctype = _json_bytes(_openai_reply(content, model="local-router"))
+        return 200, {"Content-Type": ctype}, out
+
+    if not eff.get("url"):
+        return _fallback()  # no LLM configured for intent
+    try:
+        resp = _openai_chat(eff, req)
+        content = resp["choices"][0]["message"]["content"]
+        agent, tool = _parse_route(content)
+        with _route_lock:
+            _last_route.update(tool=tool, agent=agent, ts=time.time())
+        out, ctype = _json_bytes(resp)  # return the LLM's raw answer
+        return 200, {"Content-Type": ctype}, out
+    except Exception as exc:
+        print(f"[local] intent LLM failed: {exc}", flush=True)
+        return _fallback()
 
 
 def _handle_chat(body, headers, cfg):
@@ -425,7 +468,9 @@ def _handle_chat(body, headers, cfg):
     messages = _maybe_inject_frame(messages, cfg)
 
     try:
-        resp = _openai_chat(agent_cfg, messages)
+        req2 = dict(req)
+        req2["messages"] = messages
+        resp = _openai_chat(_effective_llm(cfg, agent_cfg), req2)
         out, ctype = _json_bytes(resp)
         return 200, {"Content-Type": ctype}, out
     except Exception as exc:

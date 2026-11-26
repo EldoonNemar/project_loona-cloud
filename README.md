@@ -68,16 +68,35 @@ In `local` mode (the default) the shim replaces Keyi's AI with local,
 you: "draw me a crayon"
   1. POST /inference/stt          -> Whisper transcribes her mic
   2. POST /inference/resolveintent-> {"intent":"GPT"}
-  3. POST /inference/intent       -> local router picks the agent + tool
+  3. POST /inference/intent       -> LLM router picks the agent + tool
   4. POST /v1/chat/completions    -> routed to that agent's URL (your LLM)
   5. (if visual_tool)             -> the live camera frame is injected
 ```
 
+### The shared brain (`llm`) and the intent router
+
+Two top-level blocks control the LLMs:
+
+- **`llm`** — the shared default brain. Chat agents and the intent router
+  **inherit it** when their own `url` is empty. Point it at the local
+  llama.cpp docker agent (the recommended default) or any OpenAI endpoint.
+- **`intent`** — the router. The robot sends the full routing prompt itself
+  (an OpenAI chat completion); the shim forwards it to the intent LLM and
+  returns the LLM's `{Best_agent, Tool_requirement}` decision — wired exactly
+  like Keyi's cloud (they do the same with `llama31-chat`). Empty `url` →
+  inherits `llm`. Set a `url` to route with a smaller/external LLM instead of
+  the shared brain.
+
+`resolveintent` is a coarse "proceed to GPT?" gate, not the agent+tool
+router, so it stays a hardcoded `{intent:"GPT"}` (an LLM call there is wasted
+latency).
+
 ### The agents (tools.json → `agents`)
 
-Each agent maps to one of her intent categories. An agent is **enabled when it
-has a non-empty `url`** (or is `builtin`). If the router picks a disabled
-agent, we fall back to `chat_agent`, then to a canned reply.
+Each agent maps to one of her intent categories. A chat agent is **enabled when
+it has a resolvable `url`** — its own, or the shared `llm` it inherits (or it
+is `builtin`). Image/command agents need their own `url`. If the router picks a
+disabled agent, we fall back to `chat_agent`, then to a canned reply.
 
 | agent | type | what it does |
 |-------|------|--------------|
@@ -105,21 +124,26 @@ Because "enabled = has a URL", turning a capability on/off is just setting or
 clearing its `url`:
 
 ```jsonc
+"llm": { "url":"http://llama.cpp:8080/v1/chat/completions",
+         "model":"qwen2.5-3b-instruct", "reasoning_effort":"none" },
+"intent": { "url":"" },              // empty -> inherits llm (the router)
 "agents": {
-  "chat_agent": { "type":"chat",
-                  "url":"http://YOUR-LLM-HOST:8000/v1/chat/completions",
-                  "api_key":"...", "model":"qwen3.8-27b",
-                  "reasoning_effort":"none",
+  "chat_agent": { "type":"chat", "url":"",
                   "system":"You are Loona, a small friendly pet robot..." },
   "draw_agent": { "type":"image", "url":"http://localhost:7860/sdapi/v1/txt2img" }
 }
 ```
 
-- **chat**: any OpenAI-compatible `/v1/chat/completions` (Ollama, llama.cpp,
-  vLLM, your own). `reasoning_effort:"none"` keeps reasoning models fast.
+- **`llm`**: the shared brain. Any OpenAI-compatible `/v1/chat/completions`
+  (Ollama, llama.cpp, vLLM, your own). `reasoning_effort:"none"` keeps
+  reasoning models fast.
+- **`intent`**: leave empty to route with the shared `llm`; set a `url` to
+  route with a smaller/external LLM instead.
+- **chat agents**: inherit `llm` when their `url` is empty; set a `url` to use
+  a different model for that agent.
 - **image**: AUTOMATIC1111 `/sdapi/v1/txt2img` or OpenAI
   `/v1/images/generations`.
-- Leave a `url` empty to disable that agent (it falls back to chat).
+- Leave a `url` empty to disable a non-chat agent (it falls back to chat).
 
 ### Speech-to-text (Whisper)
 

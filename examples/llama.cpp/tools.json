@@ -1,13 +1,17 @@
 {
-  "_comment": "Copy to shim/data/tools.json (or merge the chat_agent entry). Replace HOST with the machine running llama.cpp.",
+  "_comment": "Copy to shim/data/tools.json (or merge the llm entry). Replace HOST with the machine running llama.cpp. Recommended 'one local model does everything' setup: the llama.cpp server is the shared brain for BOTH the intent router and chat.",
   "proxy_host": "HOST:8001",
+  "llm": {
+    "url": "http://HOST:8080/v1/chat/completions",
+    "model": "qwen2.5-3b-instruct",
+    "reasoning_effort": "none"
+  },
+  "intent": { "url": "" },
   "stt": { "enabled": true, "engine": "whisper", "model": "base", "language": "en" },
   "agents": {
     "chat_agent": {
       "type": "chat",
-      "url": "http://HOST:8080/v1/chat/completions",
-      "model": "qwen2.5-3b-instruct",
-      "reasoning_effort": "none",
+      "url": "",
       "system": "You are Loona, a small friendly pet robot. Keep replies short (1-2 sentences) and speakable - your answer is turned into speech. No markdown, no lists."
     },
     "draw_agent": { "type": "image", "url": "" },
